@@ -10,7 +10,7 @@
     p_inf => pointer to the first byte in the information block
     coeff => 1 coefficient in L_COEFFS table.
 
-    functions (not all):
+    functions (not):
     init => Initialization of fields and cipher state
     L_transformation => just calling R_transformation
     R_transformation => compression and mixing of all bytes into one is needed to achieve the avalanche effect
