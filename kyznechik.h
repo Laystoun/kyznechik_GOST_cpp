@@ -9,6 +9,13 @@
     variable:
     p_inf => pointer to the first byte in the information block
     coeff => 1 coefficient in L_COEFFS table.
+
+    functions (not all):
+    init => Initialization of fields and cipher state
+    L_transformation => just calling R_transformation
+    R_transformation => compression and mixing of all bytes into one is needed to achieve the avalanche effect
+    GF_mul => multiplication in Galois field
+    S_transformation => substitution of the s-block value in place of the byte value
 */
 
 #ifndef KYZNECHIK_H
