@@ -10,7 +10,7 @@
     p_inf => pointer to the first byte in the information block
     coeff => 1 coefficient in L_COEFFS table.
 
-    functions (not):
+    functions (not all):
     init => Initialization of fields and cipher state
     L_transformation => just calling R_transformation
     R_transformation => compression and mixing of all bytes into one is needed to achieve the avalanche effect
@@ -82,22 +82,23 @@ class Kyznechik {
     };
 
     static constexpr std::array<uint8_t, 16> L_COEFFS {
-        148, 32, 133, 16, 194, 192, 1, 251, 1,
-        192, 194, 16, 133, 32, 148, 1
+        148, 32, 133, 16, 194, 192, 1, 251,
+        1, 192, 194, 16, 133, 32, 148, 1
     };
 
     std::array<std::array<uint8_t,16>,10> ROUND_KEYS;
     std::array<std::array<uint8_t,16>,32> ITER_CONSTANTS;
 
-    inline void init();
-    inline void L_transformation(uint8_t* p_inf);
-    inline void R_transformation(uint8_t* p_inf);
-    inline uint8_t GF_mul(uint8_t coeff, uint8_t p_inf);
-    inline void S_transformation(uint8_t* p_inf);
-    inline void S_transformation_inv(uint8_t* p_inf);
-    inline void expand_keys();
-    inline void encrypt_block(uint8_t* p_inf);
-    inline void decrypt_block(uint8_t* p_inf);
+public:
+    void init();
+    void L_transformation(uint8_t* p_inf);
+    void R_transformation(uint8_t* p_inf);
+    uint8_t GF_mul(uint8_t coeff, uint8_t p_inf);
+    void S_transformation(uint8_t* p_inf);
+    void S_transformation_inv(uint8_t* p_inf);
+    void expand_keys();
+    void encrypt_block(uint8_t* p_inf);
+    void decrypt_block(uint8_t* p_inf);
 };
 
 #endif

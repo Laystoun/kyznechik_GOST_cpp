@@ -1,22 +1,31 @@
-#include <kyznechik.h>
+#include "kyznechik.h"
 #include <iostream>
+#include <algorithm>
+#include <random>
 
 void Kyznechik::S_transformation(uint8_t* p_inf) {
     for (int i = 0 ; i < 16 ; i++) {
-        *p_inf=Kyznechik::S[*p_inf];
+        p_inf[i]=Kyznechik::S[p_inf[i]];
     }
 }
 
 void Kyznechik::S_transformation_inv(uint8_t* p_inf) {
     for (int i = 0 ; i < 16 ; i++) {
-        *p_inf=Kyznechik::IS[*p_inf];
+        p_inf[i]=Kyznechik::IS[p_inf[i]];
     }
 }
 
 void Kyznechik::R_transformation(uint8_t* p_inf) {
     uint8_t x = 0;
 
-    // I'll finish later
+    for (int i = 0 ; i < 16 ; i++) {
+        x ^= GF_mul(Kyznechik::L_COEFFS[i], p_inf[i]);
+    }
+
+    for(int i = 15; i > 0; i--) {
+        p_inf[i] = p_inf[i - 1];
+    }
+    p_inf[0] = x;
 }
 
 uint8_t Kyznechik::GF_mul(uint8_t coeff, uint8_t p_inf) {
@@ -29,10 +38,71 @@ uint8_t Kyznechik::GF_mul(uint8_t coeff, uint8_t p_inf) {
         coeff = (coeff << 1) ^ (coeff & 0x80 ? 0xC3 : 0x00);
         p_inf >>= 1;
     }
-
-    for (int i = 0 ; i < 16 ; i++) {
-
-    }
-
     return res;
+}
+
+void Kyznechik::L_transformation(uint8_t* p_inf) {
+    for (int i = 0; i < 16; i++) {
+        R_transformation(p_inf);
+    }
+}
+
+void Kyznechik::expand_keys() {
+    std::copy(master_key, master_key + 16, ROUND_KEYS[0].begin());
+    std::copy(master_key + 16, master_key + 32, ROUND_KEYS[1].begin());
+
+    auto k1 = ROUND_KEYS[0];
+    auto k2 = ROUND_KEYS[1];
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 8; j++) {
+            auto temp = k1;
+
+            for (int k = 0; k < 16; k++) {
+                k1[k] ^= ITER_CONSTANTS[i * 8 + j][k];
+            }
+
+            S_transformation(k1.data());
+            L_transformation(k1.data());
+
+            for(int k = 0; k < 16; k++) {
+                k1[k] ^= k2[k];
+            }
+
+            k2 = temp;
+        }
+        ROUND_KEYS[2 * i + 2] = k1;
+        ROUND_KEYS[2 * i + 3] = k2;
+    }
+}
+
+void Kyznechik::encrypt_block(uint8_t* p_inf) {
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0 ; j < 16 ; j++) {
+            p_inf[j] ^= ROUND_KEYS[i][j];
+        }
+
+        S_transformation(p_inf);
+        L_transformation(p_inf);
+    }
+    for (int i = 0; i < 16 ; i++) {
+        p_inf[i] ^= ROUND_KEYS[9][i];
+    }
+}
+
+void Kyznechik::init() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 255);
+
+    for (int i = 0; i < 32; i++) {
+        master_key[i] = static_cast<uint8_t>(dis(gen));
+    }
+    
+    for (int i = 0; i < 32; i++) {
+        std::array<uint8_t, 16> temp_c {0};
+        temp_c[15] = i;
+        L_transformation(temp_c.data());
+        ITER_CONSTANTS[i] = temp_c;
+    }
 }
