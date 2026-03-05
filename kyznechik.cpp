@@ -5,13 +5,13 @@
 
 void Kyznechik::S_transformation(uint8_t* p_inf) {
     for (int i = 0 ; i < 16 ; i++) {
-        p_inf[i]=Kyznechik::S[p_inf[i]];
+        p_inf[i]=S[p_inf[i]];
     }
 }
 
 void Kyznechik::S_transformation_inv(uint8_t* p_inf) {
     for (int i = 0 ; i < 16 ; i++) {
-        p_inf[i]=Kyznechik::IS[p_inf[i]];
+        p_inf[i]=IS[p_inf[i]];
     }
 }
 
@@ -19,7 +19,7 @@ void Kyznechik::R_transformation(uint8_t* p_inf) {
     uint8_t x = 0;
 
     for (int i = 0 ; i < 16 ; i++) {
-        x ^= GF_mul(Kyznechik::L_COEFFS[i], p_inf[i]);
+        x ^= GF_mul(L_COEFFS[i], p_inf[i]);
     }
 
     for(int i = 15; i > 0; i--) {
@@ -98,11 +98,47 @@ void Kyznechik::init() {
     for (int i = 0; i < 32; i++) {
         master_key[i] = static_cast<uint8_t>(dis(gen));
     }
-    
     for (int i = 0; i < 32; i++) {
         std::array<uint8_t, 16> temp_c {0};
-        temp_c[15] = i;
+        temp_c[15] = (uint8_t)(i + 1);
         L_transformation(temp_c.data());
         ITER_CONSTANTS[i] = temp_c;
+    }
+}
+
+void Kyznechik::L_tranformation_inv(uint8_t* p_inf) {
+    for(int i = 0; i < 16; i++) {
+        R_transformation_inv(p_inf);
+    }
+}
+
+void Kyznechik::R_transformation_inv(uint8_t* p_inf) {
+    uint8_t x = p_inf[0];
+
+    for (int i = 0; i < 15; i++) {
+        p_inf[i] = p_inf[i + 1];
+    }
+
+    p_inf[15] = x;
+
+    uint8_t sum = 0;
+    for (int i = 0; i < 16; i++) {
+        sum ^= GF_mul(L_COEFFS[i], p_inf[i]);
+    }
+
+    p_inf[15] = sum;
+}
+
+void Kyznechik::decrypt_block(uint8_t* p_inf) {
+    for(int i = 0; i < 16; i++) {
+        p_inf[i] ^= ROUND_KEYS[9][i];
+    }
+
+    for (int i = 8; i >= 0; i--) {
+        L_tranformation_inv(p_inf);
+        S_transformation_inv(p_inf);
+        for (int j = 0; j < 16; j++) {
+            p_inf[j] ^= ROUND_KEYS[i][j];
+        }
     }
 }

@@ -92,7 +92,9 @@ class Kyznechik {
 public:
     void init();
     void L_transformation(uint8_t* p_inf);
+    void L_tranformation_inv(uint8_t* p_inf);
     void R_transformation(uint8_t* p_inf);
+    void R_transformation_inv(uint8_t* p_inf);
     uint8_t GF_mul(uint8_t coeff, uint8_t p_inf);
     void S_transformation(uint8_t* p_inf);
     void S_transformation_inv(uint8_t* p_inf);
