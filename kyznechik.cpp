@@ -69,8 +69,14 @@ void Kyznechik::encrypt_block(uint8_t* p_inf) {
             p_inf[j] ^= ROUND_KEYS[i][j];
         }
 
-        S_transformation(p_inf);
-        L_transformation(p_inf);
+        uint8_t result[16] {0};
+        
+        for (int x = 0; x < 16; x++) {
+            for (int k = 0; k < 16; k++) {
+                result[k] ^= LS_TABLE[x][p_inf[x]][k];
+            }
+        }
+        std::copy(result, result + 16, p_inf);
     }
     for (int i = 0; i < 16 ; i++) {
         p_inf[i] ^= ROUND_KEYS[9][i];
