@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <random>
+#include <emmintrin.h>
 
 void Kyznechik::S_transformation(uint8_t* p_inf) {
     for (int i = 0 ; i < 16 ; i++) {
@@ -64,23 +65,27 @@ void Kyznechik::expand_keys() {
 }
 
 void Kyznechik::encrypt_block(uint8_t* p_inf) {
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0 ; j < 16 ; j++) {
-            p_inf[j] ^= ROUND_KEYS[i][j];
-        }
 
-        uint8_t result[16] {0};
-        
-        for (int x = 0; x < 16; x++) {
-            for (int k = 0; k < 16; k++) {
-                result[k] ^= LS_TABLE[x][p_inf[x]][k];
-            }
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 16; j++) {
+            __m128i block = _mm_loadu_si128((__m128i*)p_inf);
+            __m128i key = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
+            block = _mm_xor_si128(block, key);
+            _mm_storeu_si128((__m128i*)p_inf, block);
         }
-        std::copy(result, result + 16, p_inf);
+        
+        __m128i res = _mm_setzero_si128();
+        for (int x = 0; x < 16; x++) {
+            __m128i entry = _mm_loadu_si128((__m128i*)LS_TABLE[x][p_inf[x]].data());
+            res = _mm_xor_si128(res, entry);
+        }
+        _mm_storeu_si128((__m128i*)p_inf, res);
     }
-    for (int i = 0; i < 16 ; i++) {
-        p_inf[i] ^= ROUND_KEYS[9][i];
-    }
+
+    __m128i block = _mm_loadu_si128((__m128i*)p_inf);
+    __m128i key = _mm_loadu_si128((__m128i*)ROUND_KEYS[9].data());
+    block = _mm_xor_si128(block, key);
+    _mm_storeu_si128((__m128i*)p_inf, block);
 }
 
 void Kyznechik::init() {
