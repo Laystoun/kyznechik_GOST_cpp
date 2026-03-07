@@ -6,10 +6,11 @@
 #include <chrono>
 #include "pkcs.h"
 #include "kyznechik.h"
+#include <omp.h>
 
 int main() {
     Kyznechik kyz; kyz.init();
-    
+
     std::cout << "enter PATH #: ";
     std::string path;
     std::getline(std::cin, path);
@@ -19,8 +20,9 @@ int main() {
         assert(in && "In file not found");
 
         auto start = std::chrono::high_resolution_clock::now();
-        size_t total_processed_bytes = 0;
-        std::vector<uint8_t> buffer(1024*1024);
+        size_t bytes_count = 0;
+        double total_sec_time = 0;
+        std::vector<uint8_t> buffer(256 * 1024 * 1024);
         while(in.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || in.gcount() > 0) {
             size_t read_bytes = in.gcount();
 
@@ -30,39 +32,27 @@ int main() {
                 read_bytes = buffer.size();
             }
 
+            auto t1 = std::chrono::high_resolution_clock::now();
+            
+            #pragma omp parallel for
             for (size_t i = 0; i < read_bytes; i += 64) {
                 kyz.encrypt_block(buffer.data() + i);
             }
+            auto t2 = std::chrono::high_resolution_clock::now();
+            bytes_count += read_bytes;
+            total_sec_time += std::chrono::duration<double>(t2 - t1).count();
+
             out.write(reinterpret_cast<char*>(buffer.data()), read_bytes);
-            total_processed_bytes += read_bytes;
         }
 
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time = end - start;
-        double seconds = time.count();
+        double mb = static_cast<double>(bytes_count) / (1024.0 * 1024.0);
+        double speed = mb / total_sec_time;
 
-        double mb = static_cast<double>(total_processed_bytes) / (1024 * 1024);
-        std::cout << "encrypted MB/s: " << (double)mb/seconds << std::endl;
-
-        std::ofstream out_decrypt_file{ path + ".dec" , std::ios::binary };
-        
-        out.clear();
-        out.seekg(0, std::ios::beg);
-        while(out.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || out.gcount() > 0) {
-            std::cout << "decrypt" << std::endl;
-            size_t check_bytes = out.gcount();
-
-            for (int i = 0; i < check_bytes; i += 16) {
-                kyz.decrypt_block(buffer.data() + i);
-            }
-            
-            if (out.peek() == EOF) {
-                buffer.resize(check_bytes);
-                pkcsunpad(buffer);
-                check_bytes = buffer.size();
-            }
-
-            out_decrypt_file.write(reinterpret_cast<char*>(buffer.data()), check_bytes);
-        }
+        std::cout << "Processed MB: " << mb << std::endl;
+        std::cout << "Total Crypto Time: " << total_sec_time << " s" << std::endl;
+        std::cout << "Speed: " << speed << " MB/s" << std::endl;
     }
+
+    std::string s;
+    std::cin >> s;
 }
