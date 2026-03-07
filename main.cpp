@@ -15,7 +15,7 @@ int main() {
     std::getline(std::cin, path);
     {
         std::ifstream in { path, std::ios::binary };
-        std::ofstream out { path + ".enc", std::ios::binary };
+        std::fstream out { path + ".enc", std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc };
         assert(in && "In file not found");
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -30,18 +30,39 @@ int main() {
                 read_bytes = buffer.size();
             }
 
-            for (size_t i = 0; i < read_bytes; i += 16) {
+            for (size_t i = 0; i < read_bytes; i += 64) {
                 kyz.encrypt_block(buffer.data() + i);
             }
             out.write(reinterpret_cast<char*>(buffer.data()), read_bytes);
             total_processed_bytes += read_bytes;
         }
 
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> time = end - start;
-            double seconds = time.count();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time = end - start;
+        double seconds = time.count();
 
-            double mb = static_cast<double>(total_processed_bytes) / (1024 * 1024);
-            std::cout << "MB/s: " << (double)mb/seconds << std::endl;
+        double mb = static_cast<double>(total_processed_bytes) / (1024 * 1024);
+        std::cout << "encrypted MB/s: " << (double)mb/seconds << std::endl;
+
+        std::ofstream out_decrypt_file{ path + ".dec" , std::ios::binary };
+        
+        out.clear();
+        out.seekg(0, std::ios::beg);
+        while(out.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || out.gcount() > 0) {
+            std::cout << "decrypt" << std::endl;
+            size_t check_bytes = out.gcount();
+
+            for (int i = 0; i < check_bytes; i += 16) {
+                kyz.decrypt_block(buffer.data() + i);
+            }
+            
+            if (out.peek() == EOF) {
+                buffer.resize(check_bytes);
+                pkcsunpad(buffer);
+                check_bytes = buffer.size();
+            }
+
+            out_decrypt_file.write(reinterpret_cast<char*>(buffer.data()), check_bytes);
+        }
     }
 }
