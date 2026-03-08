@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <random>
 #include <emmintrin.h>
+#include <immintrin.h>
 
 void Kyznechik::S_transformation(uint8_t *p_inf)
 {
@@ -80,49 +81,63 @@ void Kyznechik::expand_keys()
 
 void Kyznechik::encrypt_block(uint8_t *p_inf)
 {
-    __m128i b0 = _mm_loadu_si128((__m128i *)(p_inf + 0));
-    __m128i b1 = _mm_loadu_si128((__m128i *)(p_inf + 16));
-    __m128i b2 = _mm_loadu_si128((__m128i *)(p_inf + 32));
-    __m128i b3 = _mm_loadu_si128((__m128i *)(p_inf + 48));
+    __m256i b0 = _mm256_loadu_si256((__m256i*)(p_inf + 0));
+    __m256i b1 = _mm256_loadu_si256((__m256i*)(p_inf + 32));
+    __m256i b2 = _mm256_loadu_si256((__m256i*)(p_inf + 64));
+    __m256i b3 = _mm256_loadu_si256((__m256i*)(p_inf + 96));
 
     for (int i = 0; i < 9; i++)
     {
-        __m128i key = _mm_loadu_si128((__m128i *)ROUND_KEYS[i].data());
+        __m128i k128 = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
+        __m256i key = _mm256_set_m128i(k128, k128);
 
-        b0 = _mm_xor_si128(key, b0);
-        b1 = _mm_xor_si128(key, b1);
-        b2 = _mm_xor_si128(key, b2);
-        b3 = _mm_xor_si128(key, b3);
+        b0 = _mm256_xor_si256(b0, key);
+        b1 = _mm256_xor_si256(b1, key);
+        b2 = _mm256_xor_si256(key, b2);
+        b3 = _mm256_xor_si256(key, b3);
 
-        alignas(16) uint8_t t0[16], t1[16], t2[16], t3[16];
-        _mm_store_si128((__m128i *)t0, b0);
-        _mm_store_si128((__m128i *)t1, b1);
-        _mm_store_si128((__m128i *)t2, b2);
-        _mm_store_si128((__m128i *)t3, b3);
+        alignas(32) uint8_t t[8][16];
+        _mm256_storeu_si256((__m256i*)t[0], b0);
+        _mm256_storeu_si256((__m256i*)t[2], b1);
+        _mm256_storeu_si256((__m256i*)t[4], b2);
+        _mm256_storeu_si256((__m256i*)t[6], b3);
 
-        b0 = _mm_setzero_si128();
-        b1 = _mm_setzero_si128();
-        b2 = _mm_setzero_si128();
-        b3 = _mm_setzero_si128();
+        b0 = _mm256_setzero_si256();
+        b1 = _mm256_setzero_si256();
+        b2 = _mm256_setzero_si256();
+        b3 = _mm256_setzero_si256();
 
         for (int x = 0; x < 16; x++)
         {
-            b0 = _mm_xor_si128(b0, _mm_loadu_si128((__m128i *)LS_TABLE[x][t0[x]].data()));
-            b1 = _mm_xor_si128(b1, _mm_loadu_si128((__m128i *)LS_TABLE[x][t1[x]].data()));
-            b2 = _mm_xor_si128(b2, _mm_loadu_si128((__m128i *)LS_TABLE[x][t2[x]].data()));
-            b3 = _mm_xor_si128(b3, _mm_loadu_si128((__m128i *)LS_TABLE[x][t3[x]].data()));
+            b0 = _mm256_xor_si256(b0, _mm256_set_m128i(
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[1][x]].data()),
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[0][x]].data())
+            ));
+
+            b1 = _mm256_xor_si256(b1, _mm256_set_m128i(
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[3][x]].data()),
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[2][x]].data())
+            ));
+
+            b2 = _mm256_xor_si256(b2, _mm256_set_m128i(
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[5][x]].data()),
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[4][x]].data())
+            ));
+
+            b3 = _mm256_xor_si256(b3, _mm256_set_m128i(
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[7][x]].data()),
+                _mm_loadu_si128((__m128i*)LS_TABLE[x][t[6][x]].data())
+            ));
         }
     }
 
-    __m128i last_key = _mm_loadu_si128((__m128i *)ROUND_KEYS[9].data());
-    b0 = _mm_xor_si128(last_key, b0);
-    _mm_storeu_si128((__m128i *)(p_inf + 0), b0);
-    b1 = _mm_xor_si128(last_key, b1);
-    _mm_storeu_si128((__m128i *)(p_inf + 16), b1);
-    b2 = _mm_xor_si128(last_key, b2);
-    _mm_storeu_si128((__m128i *)(p_inf + 32), b2);
-    b3 = _mm_xor_si128(last_key, b3);
-    _mm_storeu_si128((__m128i *)(p_inf + 48), b3);
+    __m128i l_k128 = _mm_loadu_si128((__m128i *)ROUND_KEYS[9].data());
+    __m256i l_k256 = _mm256_set_m128i(l_k128, l_k128);
+
+    b0 = _mm256_xor_si256(b0, l_k256); _mm256_storeu_si256((__m256i*)(p_inf + 0), b0);
+    b1 = _mm256_xor_si256(b1, l_k256); _mm256_storeu_si256((__m256i*)(p_inf + 32), b1);
+    b2 = _mm256_xor_si256(b2, l_k256); _mm256_storeu_si256((__m256i*)(p_inf + 64), b2);
+    b3 = _mm256_xor_si256(b3, l_k256); _mm256_storeu_si256((__m256i*)(p_inf + 96), b3);
 }
 
 void Kyznechik::init()
