@@ -9,15 +9,22 @@
 #include <omp.h>
 #include <clocale>
 #include <filesystem>
-#include <io.h>
-#include <fcntl.h>
+
+#ifdef _WIN32
+    #include <io.h>
+    #include <fcntl.h>
+#endif
+
 #include <cwctype>
 #include <algorithm>
 
 template <bool with_logs>
 void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
 {
-    _setmode(_fileno(stdin), _O_U16TEXT);
+    #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_U16TEXT);
+    #endif
+
     std::wstring path;
     std::filesystem::path correct_path;
 
@@ -99,8 +106,10 @@ void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
 template <bool with_logs>
 void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
 {
-    _setmode(_fileno(stdin), _O_U16TEXT);
-    _setmode(_fileno(stdout), _O_U16TEXT);
+    #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_U16TEXT);
+        _setmode(_fileno(stdout), _O_U16TEXT);
+    #endif
     std::filesystem::path correct_path;
 
     if(drop_path == L"-1") {
@@ -208,11 +217,18 @@ void print_rounded_keys(Kyznechik& kyz) {
         std::wcout << std::endl;
 }
 
+#ifdef _WIN32
 int wmain(int argc, wchar_t *argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
     setlocale(LC_ALL, "");
-    _setmode(_fileno(stdin), _O_U16TEXT);
-    _setmode(_fileno(stdout), _O_U16TEXT);
+    #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_U16TEXT);
+        _setmode(_fileno(stdout), _O_U16TEXT);
+    #endif
+    
     Kyznechik kyz;
     kyz.init();
     
@@ -245,11 +261,11 @@ int wmain(int argc, wchar_t *argv[])
             if(is_logs) {
                 print_rounded_keys(kyz);
                 std::wcout << "Start encrypt file...\n";
-                encrypt_file<true>(kyz, drop_path);
+                encrypt_file<true>(kyz, drop_path.wstring());
                 std::wcout << "End encrypt... Close program.";
             } else {
                 std::wcout << "Start encrypt file...\n";
-                encrypt_file<false>(kyz, drop_path);
+                encrypt_file<false>(kyz, drop_path.wstring());
                 std::wcout << "End encrypt file. Close program.";
             }
         }
