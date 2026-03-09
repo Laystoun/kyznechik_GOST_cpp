@@ -7,86 +7,283 @@
 #include "pkcs.h"
 #include "kyznechik.h"
 #include <omp.h>
+#include <clocale>
+#include <filesystem>
+#include <io.h>
+#include <fcntl.h>
+#include <cwctype>
+#include <algorithm>
 
-int main() {
-    Kyznechik kyz; kyz.init();
+template <bool with_logs>
+void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
+{
+    _setmode(_fileno(stdin), _O_U16TEXT);
+    std::wstring path;
+    std::filesystem::path correct_path;
 
-    std::cout << "enter PATH #: ";
-    std::string path;
-    std::getline(std::cin, path);
+    if (drop_path == L"-1") {
+        std::wcout << "enter PATH #: ";
+        std::getline(std::wcin, path);
+        correct_path = std::filesystem::path(path);
+    } else {
+        correct_path = drop_path;
+    }
+
     {
-        std::ifstream in { path, std::ios::binary };
-        std::fstream out { path + ".enc", std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc };
+        std::ifstream in{correct_path, std::ios::binary};
+
+        std::filesystem::path outpath = std::filesystem::path(correct_path);
+        outpath += L".enc";
+        std::fstream out{outpath, std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc};
         assert(in && "In file not found");
 
-        double total_sec_time = 0;
         std::vector<uint8_t> buffer(256 * 1024 * 1024);
 
-        std::chrono::duration<double> total_encrypted_time(0);
+        double total_sec_time;
+        std::chrono::duration<double> total_encrypted_time;
+        double encrypted_bytes_handl;
+        std::chrono::high_resolution_clock::time_point start_program;
+        std::chrono::high_resolution_clock::time_point start;
 
-        double encrypted_bytes_handl(0);
-        auto start_program = std::chrono::high_resolution_clock::now();
-        while(in.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || in.gcount() > 0) {
+        if constexpr (with_logs)
+        {
+            total_sec_time = 0;
+            total_encrypted_time = std::chrono::duration<double>::zero();
+            encrypted_bytes_handl = 0;
+            start_program = std::chrono::high_resolution_clock::now();
+        }
+
+        while (in.read(reinterpret_cast<char *>(buffer.data()), buffer.size()) || in.gcount() > 0)
+        {
             size_t read_bytes = in.gcount();
 
-            if (in.eof()) {
+            if (in.eof())
+            {
                 buffer.resize(read_bytes);
                 pkcspad(buffer);
                 read_bytes = buffer.size();
             }
-            
-            auto start = std::chrono::high_resolution_clock::now();
-            #pragma omp parallel for
-            for (size_t i = 0; i < read_bytes; i += 128) {
+
+            if constexpr (with_logs)
+            {
+                start = std::chrono::high_resolution_clock::now();
+            }
+#pragma omp parallel for
+            for (size_t i = 0; i < read_bytes; i += 128)
+            {
                 kyz.encrypt_block(buffer.data() + i);
             }
-            auto end  = std::chrono::high_resolution_clock::now();
-            total_encrypted_time += (end - start);
-            encrypted_bytes_handl += read_bytes;
 
-            out.write(reinterpret_cast<char*>(buffer.data()), read_bytes);
-        }
-        std::cout << "End encrypted..." << std::endl;
-
-        std::size_t file_name = path.find_last_of("\\/");
-        std::ofstream out_decrypt_file { "C:\\Users\\docer\\Desktop\\Files_Folders\\" + path.substr(file_name + 1), std::ios::binary };
-        out.clear();
-        out.seekg(0, std::ios::beg);
-        
-        std::chrono::duration<double> total_decrypt_time { 0 };
-        auto decryption_bytes_hand { 0 };
-        while(out.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || out.gcount() > 0) {
-            size_t check_bytes = out.gcount();
-
-            auto start_decrypt = std::chrono::high_resolution_clock::now();
-            #pragma omp parallel for
-            for (int i = 0; i < check_bytes; i += 16) {
-                kyz.decrypt_block(buffer.data() + i);
-            }
-            auto end_decrypt = std::chrono::high_resolution_clock::now();
-            total_decrypt_time += (end_decrypt - start_decrypt);
-            decryption_bytes_hand += check_bytes;
-
-            if (out.peek() == EOF) {
-                buffer.resize(check_bytes);
-                pkcsunpad(buffer);
-                check_bytes = buffer.size();
+            if constexpr (with_logs)
+            {
+                auto end = std::chrono::high_resolution_clock::now();
+                total_encrypted_time += (end - start);
+                encrypted_bytes_handl += read_bytes;
             }
 
-            out_decrypt_file.write(reinterpret_cast<char*>(buffer.data()), check_bytes);
+            out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
         }
-        
+
+        if constexpr (with_logs)
+        {
+            auto end_program = std::chrono::high_resolution_clock::now();
+
+            std::chrono::duration<double> total_program_time = end_program - start_program;
+            std::wcout << "Program time (s): " << total_program_time.count() << std::endl
+                       << "Encrypted SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl
+                       << "Encrypted TIME (s): " << total_encrypted_time.count() << std::endl;
+        }
+    }
+}
+
+template <bool with_logs>
+void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
+{
+    _setmode(_fileno(stdin), _O_U16TEXT);
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    std::filesystem::path correct_path;
+
+    if(drop_path == L"-1") {
+        std::wcout << "enter DIRECTORY #: ";
+        std::wstring directory;
+        std::getline(std::wcin, directory);
+        correct_path = std::filesystem::path(directory);
+    } else {
+        correct_path = drop_path;
+    }
+
+    double total_sec_time;
+    std::chrono::duration<double> total_encrypted_time;
+    double encrypted_bytes_handl;
+    std::chrono::high_resolution_clock::time_point start_program;
+    std::chrono::high_resolution_clock::time_point start;
+
+    if constexpr (with_logs)
+    {
+        total_sec_time = 0;
+        total_encrypted_time = std::chrono::duration<double>::zero();
+        encrypted_bytes_handl = 0;
+        start_program = std::chrono::high_resolution_clock::now();
+    }
+
+    for (auto &path : std::filesystem::recursive_directory_iterator(correct_path))
+    {
+        if (path.is_regular_file())
+        {
+            if constexpr (with_logs)
+            {
+                start_program = std::chrono::high_resolution_clock::now();
+            }
+
+            std::ifstream this_file(path.path(), std::ios::binary);
+            std::ofstream out(path.path().parent_path() /= path.path().stem() += ".enc", std::ios::binary);
+
+            assert(this_file && "Error open file...");
+
+            std::vector<uint8_t> buffer(256 * 1024 * 1024);
+
+            while (this_file.read(reinterpret_cast<char *>(buffer.data()), buffer.size()) || this_file.gcount() > 0)
+            {
+                size_t read_bytes = this_file.gcount();
+
+                if (this_file.eof())
+                {
+                    buffer.resize(read_bytes);
+                    pkcspad(buffer);
+                    read_bytes = buffer.size();
+                }
+
+                if constexpr (with_logs)
+                {
+                    start = std::chrono::high_resolution_clock::now();
+                }
+
+                #pragma omp parallel for
+                for (size_t i = 0; i < read_bytes; i += 128)
+                {
+                    kyz.encrypt_block(buffer.data() + i);
+                }
+
+                if constexpr (with_logs)
+                {
+                    std::wcout << "has been encrypted: " << path.path() << std::endl;
+                }
+
+                if constexpr (with_logs)
+                {
+                    auto end = std::chrono::high_resolution_clock::now();
+                    total_encrypted_time += (end - start);
+                    encrypted_bytes_handl += read_bytes;
+                }
+
+                out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
+            }
+        }
+    }
+
+    if constexpr (with_logs)
+    {
         auto end_program = std::chrono::high_resolution_clock::now();
 
-        std::chrono::duration<double> encrypted_time = total_encrypted_time / 60;
-        std::chrono::duration<double> decrypted_time = total_decrypt_time / 60;
-
         std::chrono::duration<double> total_program_time = end_program - start_program;
-        std::cout << 
-            "Program time (s): " << total_program_time.count() << std::endl <<
-            "Encrypted SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl <<
-            "Encrypted TIME (s): " << encrypted_time.count() << std::endl <<
-            "Decrypted MB/s: " << (decryption_bytes_hand / (1024 * 1024)) / total_decrypt_time.count() << std::endl <<
-            "Decrypted TIME (s): " << decrypted_time.count() << std::endl;
+        std::wcout << "Program time (s): " << total_program_time.count() << std::endl
+                   << "Encrypted SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl
+                   << "Encrypted TIME (s): " << total_encrypted_time.count() << std::endl;
     }
+}
+
+void print_rounded_keys(Kyznechik& kyz) {
+        std::wcout << "Rounded keys: \n"
+                   << std::endl;
+
+        for (int i = 0; i < 10; i++)
+        {
+            std::cout << i << ": ";
+            for (int j = 0; j < 16; j++)
+            {
+                std::wcout << std::hex << kyz.ROUND_KEYS[i][j];
+            }
+            std::wcout << std::endl;
+        }
+        std::wcout << std::endl;
+}
+
+int wmain(int argc, wchar_t *argv[])
+{
+    setlocale(LC_ALL, "");
+    _setmode(_fileno(stdin), _O_U16TEXT);
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    Kyznechik kyz;
+    kyz.init();
+    
+    if (argc > 1) {
+        std::wstring drop_logs;
+        std::wcout << "With logs? (Y/N): ";
+        std::wcin >> drop_logs;
+        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        bool is_logs = false;
+        std::transform(drop_logs.begin(), drop_logs.end(), drop_logs.begin(), [](wchar_t c) { return std::towlower(c); });
+
+        is_logs = (drop_logs == L"y" ? true : false);
+        std::filesystem::path drop_path(argv[1]);
+
+        if(!std::filesystem::exists(drop_path)) {
+            std::cout << "Path don't exists...";
+            return -1;
+        }
+
+        if(std::filesystem::is_directory(drop_path)) {
+            if(is_logs) {
+                print_rounded_keys(kyz);
+                encrypt_directory<true>(kyz, drop_path.wstring());
+            } else {
+                std::wcout << "Start encrypt...\n";
+                encrypt_directory<false>(kyz, drop_path.wstring());
+                std::wcout << "Encrypt end. Close program";
+            }
+        } else if (std::filesystem::is_regular_file(drop_path)) {
+            if(is_logs) {
+                print_rounded_keys(kyz);
+                std::wcout << "Start encrypt file...\n";
+                encrypt_file<true>(kyz, drop_path);
+                std::wcout << "End encrypt... Close program.";
+            } else {
+                std::wcout << "Start encrypt file...\n";
+                encrypt_file<false>(kyz, drop_path);
+                std::wcout << "End encrypt file. Close program.";
+            }
+        }
+    }
+    else
+    {
+        print_rounded_keys(kyz);
+        std::wstring select;
+        std::wcout << L"What to encrypt?\n1. File (LOGS)\n2. File (NO LOGS)\n\n3. Directory (LOGS)\n4. Directory (NO LOGS)\n( 1/2/3/4 ): ";
+
+        std::wcin >> select;
+
+        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        if (select == L"1")
+        {
+            encrypt_file<true>(kyz);
+        }
+        if (select == L"2")
+        {
+            encrypt_file<false>(kyz);
+        }
+        if (select == L"3")
+        {
+            encrypt_directory<true>(kyz);
+        }
+        if (select == L"4")
+        {
+            encrypt_directory<false>(kyz);
+        }
+    }
+
+    std::wstring a;
+    std::wcin >> a;
+
+    return 0;
 }

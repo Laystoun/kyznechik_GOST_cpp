@@ -157,6 +157,8 @@ void Kyznechik::init()
         L_transformation(temp_c.data());
         ITER_CONSTANTS[i] = temp_c;
     }
+
+    expand_keys();
 }
 
 void Kyznechik::L_tranformation_inv(uint8_t *p_inf)
