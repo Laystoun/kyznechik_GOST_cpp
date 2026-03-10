@@ -277,7 +277,8 @@ int main(int argc, char *argv[])
         std::wcout << L"What to encrypt?\n1. File (LOGS)\n2. File (NO LOGS)\n\n3. Directory (LOGS)\n4. Directory (NO LOGS)\n( 1/2/3/4 ): ";
 
         std::getline(std::wcin, select);
-
+        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        
         if (select == L"1")
         {
             encrypt_file<true>(kyz);
