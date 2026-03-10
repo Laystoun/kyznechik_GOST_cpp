@@ -37,7 +37,7 @@
 **Windows**
 - ```g++ main.cpp kyznechik.cpp pkcs.cpp -o main.exe -O3 -mavx2 -fopenmp -municode```
 
-**Drag-On-Grop**
+**Drag-On-Drop**
 - **Просто перетяните ваш файл или директорию на main.exe и он будет успешно зашифрован.**
 
 ## Хеш суммы ( HASH SUM )
