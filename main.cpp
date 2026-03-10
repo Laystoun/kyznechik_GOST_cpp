@@ -43,6 +43,8 @@ void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
         outpath += L".enc";
         std::fstream out{outpath, std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc};
         assert(in && "In file not found");
+        
+        std::wcout << "Start encrypt...\n";
 
         std::vector<uint8_t> buffer(256 * 1024 * 1024);
 
@@ -100,6 +102,8 @@ void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
                        << "Encrypted SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl
                        << "Encrypted TIME (s): " << total_encrypted_time.count() << std::endl;
         }
+
+        std::wcout << "Directory success encrypted. Close program.\n";
     }
 }
 
@@ -134,7 +138,7 @@ void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
         encrypted_bytes_handl = 0;
         start_program = std::chrono::high_resolution_clock::now();
     }
-
+    std::wcout << "Start encrypt...\n";
     for (auto &path : std::filesystem::recursive_directory_iterator(correct_path))
     {
         if (path.is_regular_file())
@@ -199,6 +203,7 @@ void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
                    << "Encrypted SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl
                    << "Encrypted TIME (s): " << total_encrypted_time.count() << std::endl;
     }
+    std::wcout << "Directory success encrypted. Close program.\n";
 }
 
 void print_rounded_keys(Kyznechik& kyz) {
@@ -278,7 +283,7 @@ int main(int argc, char *argv[])
 
         std::getline(std::wcin, select);
         std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        
+
         if (select == L"1")
         {
             encrypt_file<true>(kyz);
