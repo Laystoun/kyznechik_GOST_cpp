@@ -276,9 +276,7 @@ int main(int argc, char *argv[])
         std::wstring select;
         std::wcout << L"What to encrypt?\n1. File (LOGS)\n2. File (NO LOGS)\n\n3. Directory (LOGS)\n4. Directory (NO LOGS)\n( 1/2/3/4 ): ";
 
-        std::wcin >> select;
-
-        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::getline(std::wcin, select);
 
         if (select == L"1")
         {
