@@ -41,6 +41,6 @@
 - **Просто перетяните ваш файл или директорию на main.exe и он будет успешно зашифрован.**
 
 ## Хеш суммы ( HASH SUM )
-* MD5: 6380070b5796b11aecf5a2d38782435e
-* SHA256: b27e2273409ecf1538e9d402db28b4f8638097ac40432ad5ffd4d3f0b24c4da1
-* BLAKE2B: 84da97e65b63d24851e46fc64d8d115ba3b871c6d27f3b8b84bb36bee5f6881a1e21c50ccfc92b4b2de18ef93c1dbe1cfe8b6ea7bdd4ee95ef0f6e6d76141a09 
+* MD5: 1b5d52da3ed21b11612a45ee2066578a
+* SHA256: 3e0611bc92402627c6afc249c84ce7e7ed00d16daa9184424ced8bfbf4200dd7
+* BLAKE2B: 1229ff674c8b86a0cfe1ebeb5d6de7514389da71ebcb328978c7450dc0f235e2ddf0fa196bdcdfc723dc3adb4623033d65e7871d4ae3393f9bc3cf6c5ff20683
