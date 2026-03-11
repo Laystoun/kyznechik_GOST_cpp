@@ -39,8 +39,3 @@
 
 **Drag-On-Drop**
 - **Просто перетяните ваш файл или директорию на main.exe и он будет успешно зашифрован.**
-
-## Хеш суммы ( HASH SUM )
-* MD5: 1b5d52da3ed21b11612a45ee2066578a
-* SHA256: 3e0611bc92402627c6afc249c84ce7e7ed00d16daa9184424ced8bfbf4200dd7
-* BLAKE2B: 1229ff674c8b86a0cfe1ebeb5d6de7514389da71ebcb328978c7450dc0f235e2ddf0fa196bdcdfc723dc3adb4623033d65e7871d4ae3393f9bc3cf6c5ff20683
