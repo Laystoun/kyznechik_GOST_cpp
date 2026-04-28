@@ -142,14 +142,6 @@ void Kyznechik::encrypt_block(uint8_t *p_inf)
 
 void Kyznechik::init()
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 255);
-
-    for (int i = 0; i < 32; i++)
-    {
-        master_key[i] = static_cast<uint8_t>(dis(gen));
-    }
     for (int i = 0; i < 32; i++)
     {
         std::array<uint8_t, 16> temp_c{0};

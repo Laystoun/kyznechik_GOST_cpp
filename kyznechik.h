@@ -25,8 +25,8 @@
 #include <array>
 
 class Kyznechik {
-    uint8_t master_key[32];
 public:
+    uint8_t master_key[32];
     static constexpr std::array<uint8_t, 256> S {
         252, 238, 221,  17, 207, 110,  49,  22, 251, 196, 250,
            218,  35, 197,   4,  77, 233, 119, 240, 219, 147,  46,
@@ -4470,7 +4470,6 @@ public:
         {{ 0x6d, 0x86, 0xa5, 0x38, 0xc2, 0x3d, 0xc1, 0xe1, 0x27, 0xe6, 0xca, 0x31, 0x6c, 0xd6, 0xe7, 0xb6 }}
     }}
 }};
-    
     std::array<std::array<uint8_t,16>,10> ROUND_KEYS;
     std::array<std::array<uint8_t,16>,32> ITER_CONSTANTS;
 
