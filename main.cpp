@@ -94,7 +94,7 @@ void encrypt_file(Kyznechik &kyz, std::wstring drop_path = L"-1")
 
             out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
         }
-        
+
         in.close();
         out.close();
         std::filesystem::remove(correct_path);
@@ -147,7 +147,7 @@ void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
     std::wcout << "Start encrypt...\n";
     for (auto &path : std::filesystem::recursive_directory_iterator(correct_path))
     {
-        if (path.is_regular_file())
+        if (path.is_regular_file() && path.path().extension() != ".enc")
         {
             if constexpr (with_logs)
             {
@@ -155,7 +155,7 @@ void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
             }
 
             std::ifstream this_file(path.path(), std::ios::binary);
-            std::ofstream out(path.path().parent_path() /= path.path().stem() += ".enc", std::ios::binary);
+            std::ofstream out(path.path().parent_path() /= path.path().filename() += ".enc", std::ios::binary);
 
             assert(this_file && "Error open file...");
 
@@ -195,8 +195,11 @@ void encrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
                     encrypted_bytes_handl += read_bytes;
                 }
 
-                out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
+                out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);    
             }
+            this_file.close();
+            out.close();
+            std::filesystem::remove(path.path());
         }
     }
 
@@ -305,6 +308,110 @@ void decrypt_file(Kyznechik& kyz, std::wstring drop_path = L"-1") {
     }
 }
 
+template <bool with_logs>
+void decrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
+{
+    #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_U16TEXT);
+        _setmode(_fileno(stdout), _O_U16TEXT);
+    #endif
+    std::filesystem::path correct_path;
+
+    if(drop_path == L"-1") {
+        std::wcout << "enter DIRECTORY #: ";
+        std::wstring directory;
+        std::getline(std::wcin, directory);
+        correct_path = std::filesystem::path(directory);
+    } else {
+        correct_path = drop_path;
+    }
+
+    double total_sec_time;
+    std::chrono::duration<double> total_encrypted_time;
+    double encrypted_bytes_handl;
+    std::chrono::high_resolution_clock::time_point start_program;
+    std::chrono::high_resolution_clock::time_point start;
+
+    if constexpr (with_logs)
+    {
+        total_sec_time = 0;
+        total_encrypted_time = std::chrono::duration<double>::zero();
+        encrypted_bytes_handl = 0;
+        start_program = std::chrono::high_resolution_clock::now();
+    }
+    std::wcout << "Start decrypt...\n";
+    for (auto &path : std::filesystem::recursive_directory_iterator(correct_path))
+    {
+        if (path.is_regular_file() && path.path().extension() == ".enc")
+        {
+            if constexpr (with_logs)
+            {
+                start_program = std::chrono::high_resolution_clock::now();
+            }
+
+            std::ifstream this_file(path.path(), std::ios::binary);
+            std::ofstream out(path.path().parent_path() /= path.path().stem(), std::ios::binary);
+
+            assert(this_file && "Error open file...");
+
+            std::vector<uint8_t> buffer(256 * 1024 * 1024);
+
+            while (this_file.read(reinterpret_cast<char *>(buffer.data()), buffer.size()) || this_file.gcount() > 0)
+            {
+                size_t read_bytes = this_file.gcount();
+                bool is_last = this_file.eof();
+
+                if constexpr (with_logs)
+                {
+                    start = std::chrono::high_resolution_clock::now();
+                }
+
+                #pragma omp parallel for
+                for (size_t i = 0; i < read_bytes; i += 16)
+                {
+                    kyz.decrypt_block(buffer.data() + i);
+                }
+
+                if (is_last)
+                {
+                    buffer.resize(read_bytes);
+                    pkcsunpad(buffer);
+                    read_bytes = buffer.size();
+                }
+
+                if constexpr (with_logs)
+                {
+                    std::wcout << "has been decrypted: " << path.path() << std::endl;
+                }
+
+                if constexpr (with_logs)
+                {
+                    auto end = std::chrono::high_resolution_clock::now();
+                    total_encrypted_time += (end - start);
+                    encrypted_bytes_handl += read_bytes;
+                }
+
+                out.write(reinterpret_cast<char *>(buffer.data()), read_bytes);
+            }
+        
+            this_file.close();
+            out.close();
+            std::filesystem::remove(path.path());
+        }
+    }
+
+    if constexpr (with_logs)
+    {
+        auto end_program = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double> total_program_time = end_program - start_program;
+        std::wcout << "Program time (s): " << total_program_time.count() << std::endl
+                   << "Decrypt SPEED MB/s: " << (encrypted_bytes_handl / (1024 * 1024)) / total_encrypted_time.count() << std::endl
+                   << "Decrypt TIME (s): " << total_encrypted_time.count() << std::endl;
+    }
+    std::wcout << "Directory success decrypted. Close program.\n";
+}
+
 void print_rounded_keys(Kyznechik& kyz) {
         
         std::wcout << "MASTER KEY: ";
@@ -345,10 +452,12 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
     if (is_decrypt) {
         std::string d_pass = password.substr(0, password.size() - 64);
         std::string d_salt = password.substr(password.size() - 64);
-        
+        // 
         d_pass.append(d_salt.begin(), d_salt.end());
+        std::wcout << "Hashing password and salt (PIM => 500.000 iterations)" << std::endl;
+        
         SHA256 sha;
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 500000; i++) {
             if (i == 0) {
                 sha.update(d_pass);
             } else {
@@ -379,7 +488,8 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
             d_salt_hex += oss.str();
         }
         d_pass.append(d_salt_hex);
-        for (int h = 0; h < 1; h++) {
+        std::wcout << "Hashing password and salt (PIM => 500.000 iterations)" << std::endl;
+        for (int h = 0; h < 500000; h++) {
             if (h == 0) {
                 sha.update(d_pass);
             } else {
@@ -399,7 +509,7 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         
         std::wcout << "Save for decrypt: " << wpassword;
         std::wcout << std::wstring(d_salt_hex.begin(), d_salt_hex.end());
-        std::wcout << std::endl;
+        std::wcout << std::endl << std::endl;
     }
 }
 
@@ -488,6 +598,12 @@ int main(int argc, char *argv[])
             create_pbkdf_password(kyz, true);
             print_rounded_keys(kyz);
             decrypt_file<true>(kyz);
+        }
+        if (select == L"4")
+        {
+            create_pbkdf_password(kyz, true);
+            print_rounded_keys(kyz);
+            decrypt_directory<true>(kyz);
         }
     }
 
