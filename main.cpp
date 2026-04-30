@@ -268,7 +268,7 @@ void decrypt_file(Kyznechik& kyz, std::wstring drop_path = L"-1") {
                 start = std::chrono::high_resolution_clock::now();
             }
 #pragma omp parallel for
-            for (size_t i = 0; i < read_bytes; i += 16)
+            for (size_t i = 0; i < read_bytes; i += 128)
             {
                 kyz.decrypt_block(buffer.data() + i);
             }
@@ -367,7 +367,7 @@ void decrypt_directory(Kyznechik &kyz, std::wstring drop_path = L"-1")
                 }
 
                 #pragma omp parallel for
-                for (size_t i = 0; i < read_bytes; i += 16)
+                for (size_t i = 0; i < read_bytes; i += 128)
                 {
                     kyz.decrypt_block(buffer.data() + i);
                 }
@@ -450,16 +450,12 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
     std::getline(std::wcin, wpassword);
     std::string password (wpassword.begin(), wpassword.end());
     if (is_decrypt) {
-        std::string d_pass = password.substr(0, password.size() - 64);
-        std::string d_salt = password.substr(password.size() - 64);
-        // 
-        d_pass.append(d_salt.begin(), d_salt.end());
         std::wcout << "Hashing password and salt (PIM => 500.000 iterations)" << std::endl;
         
         SHA256 sha;
         for (int i = 0; i < 500000; i++) {
             if (i == 0) {
-                sha.update(d_pass);
+                sha.update(password);
             } else {
                 std::string this_hex = SHA256::toString(this_hash);
                 sha.update(this_hex);
@@ -481,12 +477,7 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         std::vector<uint8_t> d_salt(32);
         std::string d_pass {password.begin(), password.end()};
         std::string d_salt_hex;
-        for (int s_fill = 0; s_fill < 32; s_fill++) {
-            d_salt[s_fill] = static_cast<uint8_t>(rd());
-            std::ostringstream oss;
-            oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(d_salt[s_fill]);
-            d_salt_hex += oss.str();
-        }
+        
         d_pass.append(d_salt_hex);
         std::wcout << "Hashing password and salt (PIM => 500.000 iterations)" << std::endl;
         for (int h = 0; h < 500000; h++) {
@@ -504,7 +495,7 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         
         std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
         std::wcin.clear();
-        // 9342565319640as@b89921dc166a49fae43bfb055f00367213c280a5f6b773929193c77deb76888c
+
         kyz.init();
         
         std::wcout << "Save for decrypt: " << wpassword;

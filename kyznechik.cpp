@@ -183,19 +183,36 @@ void Kyznechik::R_transformation_inv(uint8_t *p_inf)
 
 void Kyznechik::decrypt_block(uint8_t *p_inf)
 {
-    __m128i block = _mm_loadu_si128((__m128i*)p_inf);
-    __m128i key = _mm_loadu_si128((__m128i*)ROUND_KEYS[9].data());
-    block = _mm_xor_si128(block, key);
-    _mm_storeu_si128((__m128i*)p_inf, block);
+    __m256i b1 = _mm256_loadu_si256((__m256i*)(p_inf + 0));
+    __m256i b2 = _mm256_loadu_si256((__m256i*)(p_inf + 32));
+    __m256i b3 = _mm256_loadu_si256((__m256i*)(p_inf + 64));
+    __m256i b4 = _mm256_loadu_si256((__m256i*)(p_inf + 96));
+
+    __m128i k128 = _mm_loadu_si128((__m128i*)ROUND_KEYS[9].data());
+    __m256i key = _mm256_set_m128i(k128, k128);
+
+    b1 = _mm256_xor_si256(b1, key);
+    b2 = _mm256_xor_si256(b2, key);
+    b3 = _mm256_xor_si256(b3, key);
+    b4 = _mm256_xor_si256(b4, key);
+
+    _mm256_storeu_si256((__m256i*)p_inf, b1);
+    _mm256_storeu_si256((__m256i*)(p_inf + 32), b2);
+    _mm256_storeu_si256((__m256i*)(p_inf + 64), b3);
+    _mm256_storeu_si256((__m256i*)(p_inf + 96), b4);
 
     for (int i = 8; i >= 0; i--)
     {
-        L_tranformation_inv(p_inf);
-        S_transformation_inv(p_inf);
+        for (int b = 0; b < 8; b++)  // 8 блоков по 16 байт
+        {
+            uint8_t *blk = p_inf + b * 16;
+            L_tranformation_inv(blk);
+            S_transformation_inv(blk);
         
-        __m128i i_block = _mm_loadu_si128((__m128i*)p_inf);
-        __m128i i_key = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
-        i_block = _mm_xor_si128(i_block, i_key);
-        _mm_storeu_si128((__m128i*)p_inf, i_block);
+            __m128i block = _mm_loadu_si128((__m128i*)blk);
+            __m128i rkey  = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
+            block = _mm_xor_si128(block, rkey);
+            _mm_storeu_si128((__m128i*)blk, block);
+        }
     }
 }
