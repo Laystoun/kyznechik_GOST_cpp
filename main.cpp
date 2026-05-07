@@ -496,9 +496,6 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         _setmode(_fileno(stdin), _O_U16TEXT);
     #endif
 
-    std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
-    std::wcin.clear();
-
     std::array<uint8_t, 32> this_hash = {0};
     std::wcout << "Password: ";
     std::wstring wpassword;
@@ -522,8 +519,6 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         }
         kyz.init();
         key_finger_print(kyz.ROUND_KEYS);
-        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
-        std::wcin.clear();
 
         return;
     } else {
@@ -547,9 +542,6 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         for (int m_key = 0; m_key < 32; m_key++) {
             kyz.master_key[m_key] = this_hash[m_key];
         }
-        
-        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
-        std::wcin.clear();
 
         kyz.init();
         key_finger_print(kyz.ROUND_KEYS);
@@ -608,8 +600,6 @@ int main(int argc, char *argv[])
     if (argc > 1) {
         std::wstring drop_logs;
         std::wcout << "With logs? (Y/N): ";
-        std::wcin >> drop_logs;
-        std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         bool is_logs = false;
         std::transform(drop_logs.begin(), drop_logs.end(), drop_logs.begin(), [](wchar_t c) { return std::towlower(c); });
 
@@ -652,9 +642,6 @@ int main(int argc, char *argv[])
         //print_rounded_keys(kyz);
         std::wstring select;
         std::wcout << L"<=== ENCRYPT ===>\n\n1. File\n2. Directory\n\n<=== DECRYPT ===>\n\n3. File\n4. Directory\n\n( 1/2/3/4 ): ";
-
-        std::getline(std::wcin, select);
-        //std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         if (select == L"1")
         {
