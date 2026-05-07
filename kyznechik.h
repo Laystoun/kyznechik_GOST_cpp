@@ -27,6 +27,13 @@
 #include <thread>
 #include <chrono>
 
+#ifdef _WIN32
+    #include <windows.h>
+#elif defined(__linux__)
+    #include <string.h>
+    #include <strings.h>
+#endif
+
 typedef std::array<uint8_t,16> r_key;
 
 class Kyznechik {
@@ -4493,6 +4500,17 @@ public:
     
     ~Kyznechik() {
         volatile uint8_t* p = master_key;
+            
+        #ifdef _WIN32
+            SecureZeroMemory((PVOID)master_key, 32);
+            for (int r_k = 0; r_k < 10; r_k++)
+                SecureZeroMemory((PVOID)ROUND_KEYS[r_k].data(), 16);
+        #elif defined(__linux__)
+            explicit_bzero((void*)master_key, 32);
+        #endif
+
+            
+        
         for (size_t i = 0; i < 32; i++) {
             switch (i) {
                 case 0: p[i] = 0x46; break;
