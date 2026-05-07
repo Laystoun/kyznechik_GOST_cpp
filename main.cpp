@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <random>
 #include "SHA256.h"
+#include <thread>
 
 #ifdef _WIN32
     #include <io.h>
@@ -435,6 +436,32 @@ void print_rounded_keys(Kyznechik& kyz) {
         std::wcout << std::endl;
 }
 
+void key_finger_print(std::array<std::array<uint8_t, 16ULL>, 10ULL>& ROUND_KEY) {
+    const wchar_t* SHADE[] = {
+        L" ",        // 0x00–0x1F
+        L"░",        // 0x20–0x5F
+        L"▒",        // 0x60–0x9F
+        L"▓",        // 0xA0–0xDF
+        L"█"         // 0xE0–0xFF
+    };
+
+    std::wcout << "KEY FINGERPRINT:" << std::endl << std::endl;
+    for(int key_c = 0; key_c < 10; key_c++) {
+        for (int key_v = 0; key_v < 16; key_v++) {
+            uint8_t hex_v = ROUND_KEY[key_c][key_v];
+
+            if (hex_v >= 0x00 && hex_v <= 0x1F) std::wcout << SHADE[0];
+            if (hex_v <= 0x5F && hex_v >= 0x20) std::wcout << SHADE[1];
+            if (hex_v >= 0x60 && hex_v <= 0x9F) std::wcout << SHADE[2];
+            if (hex_v <= 0xDF && hex_v >= 0xA0) std::wcout << SHADE[3];
+            if (hex_v >= 0xE0 && hex_v <= 0xFF) std::wcout << SHADE[4];
+
+        }
+        std::wcout << std::endl;
+    }
+    std::wcout << std::endl;
+}
+
 void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
             
     #ifdef _WIN32
@@ -466,7 +493,7 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
             kyz.master_key[f_key] = this_hash[f_key];
         }
         kyz.init();
-        
+        key_finger_print(kyz.ROUND_KEYS);
         std::wcin.ignore(std::numeric_limits<std::streamsize>::max(), L'\n');
         std::wcin.clear();
 
@@ -497,11 +524,43 @@ void create_pbkdf_password(Kyznechik& kyz, bool is_decrypt) {
         std::wcin.clear();
 
         kyz.init();
-        
+        key_finger_print(kyz.ROUND_KEYS);
+
         std::wcout << "Save for decrypt: " << wpassword;
         std::wcout << std::wstring(d_salt_hex.begin(), d_salt_hex.end());
         std::wcout << std::endl << std::endl;
     }
+}
+
+void speed_test(Kyznechik& kyz) {
+    for (int i = 0; i < 32; i++) kyz.master_key[i] = i ^ 0x00;
+
+    const size_t BUFF_SIZE = 1024 * 1024 * 1024;
+    std::vector<uint8_t> buff(BUFF_SIZE);
+
+    for (int x = 0; x < BUFF_SIZE; x++) buff[x] = uint8_t(x ^ 0xC3);
+    kyz.init();
+
+    std::wcout << "Start In-Memory benchmark" << std::endl;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    #pragma omp parallel for    
+    for(int off = 0; off < BUFF_SIZE; off += 128) {
+        kyz.encrypt_block(buff.data() + off);
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+
+    // 3. Считаем скорость
+    double gigabytes = (double)BUFF_SIZE / (1024 * 1024 * 1024);
+    double speed = gigabytes / diff.count();
+
+    std::wcout << "Time: " << diff.count() << " seconds" << std::endl;
+    std::wcout << "Pure Speed: " << speed << " GB/s" << std::endl << std::endl;
+
+    return;
 }
 
 #ifdef _WIN32
@@ -517,8 +576,6 @@ int main(int argc, char *argv[])
     #endif
     
     Kyznechik kyz;
-    
-    kyz.init();
 
     if (argc > 1) {
         std::wstring drop_logs;
@@ -574,32 +631,30 @@ int main(int argc, char *argv[])
         if (select == L"1")
         {
             create_pbkdf_password(kyz, false);
-            print_rounded_keys(kyz);
+            //print_rounded_keys(kyz);
+            
             encrypt_file<true>(kyz);
         }
         if (select == L"2")
         {
             create_pbkdf_password(kyz, false);
-            print_rounded_keys(kyz);
+            //print_rounded_keys(kyz);
 
             encrypt_directory<true>(kyz);
         }
         if (select == L"3")
         {
             create_pbkdf_password(kyz, true);
-            print_rounded_keys(kyz);
+            //print_rounded_keys(kyz);
             decrypt_file<true>(kyz);
         }
         if (select == L"4")
         {
             create_pbkdf_password(kyz, true);
-            print_rounded_keys(kyz);
+            //print_rounded_keys(kyz);
             decrypt_directory<true>(kyz);
         }
     }
-
-    std::wstring a;
-    std::wcin >> a;
 
     return 0;
 }

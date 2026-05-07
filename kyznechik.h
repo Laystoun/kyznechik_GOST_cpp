@@ -23,6 +23,9 @@
 
 #include <cstdint>
 #include <array>
+#include <iostream>
+#include <thread>
+#include <chrono>
 
 class Kyznechik {
 public:
@@ -4484,6 +4487,41 @@ public:
     void expand_keys();
     void encrypt_block(uint8_t* p_inf);
     void decrypt_block(uint8_t* p_inf);
+
+    
+    ~Kyznechik() {
+        volatile uint8_t* p = master_key;
+        for (size_t i = 0; i < 32; i++) {
+            switch (i) {
+                case 0: p[i] = 0x46; break;
+                case 1: p[i] = 0x53; break;
+                case 2: p[i] = 0x42; break;
+                case 3: p[i] = 0x20; break;
+                case 4: p[i] = 0x53; break;
+                case 5: p[i] = 0x6f; break;
+                case 6: p[i] = 0x73; break;
+                case 7: p[i] = 0x69; break;
+                case 8: p[i] = 0x74; break;
+                case 9: p[i] = 0x65; break;
+                case 10: p[i] = 0x29; break;
+                case 11: p[i] = 0x29; break;
+                case 12: p[i] = 0x29; break;
+                default: p[i] = 0x00;
+            }
+        }
+
+        for (size_t r_k = 0; r_k < 10; r_k++) {
+            volatile uint8_t* rp = ROUND_KEYS[r_k].data();
+            for (size_t b = 0; b < 16; b++) {
+                rp[b] = 0x00;
+            }
+        }
+
+        std::wcout << "the encryption key was destroyed in RAM\nmemory dump not possible..." << std::endl;
+    
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    
 };
 
 #endif

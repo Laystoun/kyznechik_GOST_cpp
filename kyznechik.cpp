@@ -203,14 +203,14 @@ void Kyznechik::decrypt_block(uint8_t *p_inf)
 
     for (int i = 8; i >= 0; i--)
     {
-        for (int b = 0; b < 8; b++)  // 8 блоков по 16 байт
+        for (int b = 0; b < 8; b++)
         {
             uint8_t *blk = p_inf + b * 16;
             L_tranformation_inv(blk);
             S_transformation_inv(blk);
         
             __m128i block = _mm_loadu_si128((__m128i*)blk);
-            __m128i rkey  = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
+            __m128i rkey = _mm_loadu_si128((__m128i*)ROUND_KEYS[i].data());
             block = _mm_xor_si128(block, rkey);
             _mm_storeu_si128((__m128i*)blk, block);
         }
