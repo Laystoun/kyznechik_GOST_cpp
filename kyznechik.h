@@ -27,6 +27,8 @@
 #include <thread>
 #include <chrono>
 
+typedef std::array<uint8_t,16> r_key;
+
 class Kyznechik {
 public:
     uint8_t master_key[32];
